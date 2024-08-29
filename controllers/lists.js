@@ -99,6 +99,7 @@ exports.addList = async (req, res) => {
                 list_temp.push(response.data['items'][j]['title']);
             }
         }
+
         lists.push(CreateList(listId, list_temp));
         res.status(201).json(lists);
     } catch (error) {
