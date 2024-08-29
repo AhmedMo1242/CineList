@@ -1,39 +1,44 @@
 const { lists } = require("../models/list");
 
-exports.DeleteList = function DeleteList(List){
+/**
+ * Deletes a list from the global lists array and updates the IDs of the remaining lists.
+ *
+ * @param {Object} List - The list object to be deleted from the global lists array.
+ */
+exports.DeleteList = function DeleteList(List) {
+    // Find the index of the list to delete
     let deleted_idx = lists.indexOf(List);
-    for(let i =deleted_idx;i< lists.length;i++){
-        lists[i]['id']=deleted_idx;
-        deleted_idx++;
+    
+    if (deleted_idx === -1) {
+        console.error("List not found");
+        return;
     }
-    lists.splice(lists.indexOf(List),1);
-}
+    
+    // Remove the list from the global lists array
+    lists.splice(deleted_idx, 1);
+};
 
-exports.CombineLists = function CombineLists(lists){
-    let combined_movies = [];
-     let list2 =[];
-     let flag = false;
-     console.log(lists.length);
-    for(let i=0; i<lists.length;i++){
-        for(let j = 0;j< lists[i]['movies'].length;j++){
-            list2.push(lists[i]['movies'][j]);
-        }
-        console.log(lists[i]['movies']);
-        if(!flag){
-            combined_movies = list2;
-            flag = true;
-        }
-        let temp = combined_movies
-        for(let j = 0;j<combined_movies.length;j++){
-            let check = list2.find(item => item === combined_movies[j]);
-            if(!check)
-            {
-                temp.splice(temp.indexOf(combined_movies[j]),1);
-            }
-        }
-        combined_movies = temp;
-        list2 = [];
+/**
+ * Combines multiple lists of movies and returns the movies that appear in all lists.
+ *
+ * @param {Array} lists - An array of list objects, each containing an array of 'movies'.
+ * @returns {Array} - An array of movies that appear in all provided lists.
+ */
+exports.CombineLists = function CombineLists(lists) {
+    if (lists.length === 0) {
+        return []; // Return an empty array if no lists are provided
     }
+
+    // Initialize combined_movies with the movies from the first list
+    let combined_movies = lists[0]['movies'];
+
+    // Iterate over the remaining lists and filter movies that are present in all lists
+    for (let i = 1; i < lists.length; i++) {
+        combined_movies = combined_movies.filter(movie => 
+            lists[i]['movies'].includes(movie)
+        );
+    }
+
+    // Return the list of movies that appear in all the lists
     return [...new Set(combined_movies)];
-}
-
+};
