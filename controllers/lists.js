@@ -4,7 +4,7 @@ const request = require('request');
 const axios = require('axios');
 
 // Store the TMDB authentication token securely, preferably in environment variables - Use Your Own Here.
-const TMDB_AUTH_TOKEN = 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0MTJhYjBlZWM0YmZiZTdiOTc5ZjE5ZmNlNDAzMDU1NiIsIm5iZiI6MTcyNjYxNzg4Ni4zNjc5OCwic3ViIjoiNjZlYTE4ODk4MmZmODczZjdkMWYwN2RmIiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.UbEUPf93yyhcThhQS6izYrqPxhso7pf6XEkyYWJjtoY';
+const TMDB_AUTH_TOKEN = 'Bearer ';
 
 /**
  * Handler to retrieve a specific list by its ID.
