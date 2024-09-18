@@ -4,54 +4,61 @@ const request = require('request');
 const axios = require('axios');
 
 // Store the TMDB authentication token securely, preferably in environment variables - Use Your Own Here.
-const TMDB_AUTH_TOKEN = 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJkMjEzMzU3MzRlZGIzOGVhMzdlYzhiMTY2MjRmNzA2NSIsIm5iZiI6MTcyNDMwNzk4Ny4xOTA3OTgsInN1YiI6IjY0ODNkYzk0YmYzMWYyNTA1NzA1ZDlhNiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.NtyuRuWUlB0wWtsk8aN6pwQM7AAK2OWHMMsrX8xUVO0';
+const TMDB_AUTH_TOKEN = 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0MTJhYjBlZWM0YmZiZTdiOTc5ZjE5ZmNlNDAzMDU1NiIsIm5iZiI6MTcyNjYxNzg4Ni4zNjc5OCwic3ViIjoiNjZlYTE4ODk4MmZmODczZjdkMWYwN2RmIiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.UbEUPf93yyhcThhQS6izYrqPxhso7pf6XEkyYWJjtoY';
 
 /**
- * Handler to retrieve a specific list by ID.
+ * Handler to retrieve a specific list by its ID.
  * 
  * @route GET /lists/:id
  * @param {Object} req - The request object containing the list ID as a URL parameter.
+ * @param {string} req.params.id - The ID of the list to retrieve.
  * @param {Object} res - The response object used to send the list data or an error message.
  * @returns {void}
  */
-exports.getList = (req, res) => {
-    // Get the id parameter from the request
-    const id = req.params.id;
+exports.getList = async (req, res) => {
+    try {
+        // Get the id parameter from the request
+        const id = req.params.id;
 
-    // Find the post with the given id in the lists array
-    const post = lists.find((p) => p.id == id);
-
-    // If the post exists, send it as a JSON response
-    if (post) {
-        res.json(post);
-    } else {
-        // If the post does not exist, send a 404 status code and a message
-        res.status(404).send('Post not found');
+        // Wait for the promise returned by FindList to resolve
+        const post = await Utils.FindList(id);
+        
+        // If the post exists, send it as a JSON response
+        if (post && post.length > 0) {
+            res.json(post);
+        } else {
+            // If the post does not exist, send a 404 status code and a message
+            res.status(404).send('List not found');
+        }
+    } catch (error) {
+        // Handle any errors that occur during the query
+        console.error('Error getting list:', error);
+        res.status(500).send('Server error');
     }
 };
 
 /**
- * Handler to delete a specific list by ID.
+ * Handler to delete a specific list by its ID.
  * 
  * @route DELETE /lists/:id
  * @param {Object} req - The request object containing the list ID as a URL parameter.
+ * @param {string} req.params.id - The ID of the list to delete.
  * @param {Object} res - The response object used to confirm deletion or send an error message.
  * @returns {void}
  */
-exports.deleteList = (req, res) => {
-    // Get the id parameter from the request
-    const id = req.params.id;
+exports.deleteList = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const result = await Utils.DeleteList(id);
 
-    // Find the post with the given id in the lists array
-    const post = lists.find((p) => p.id == id);
-
-    // If the post exists, delete it
-    if (post) {
-        res.json(post);
-        Utils.DeleteList(post);
-    } else {
-        // If the post does not exist, send a 404 status code and a message
-        res.status(404).send('Post not found');
+        if (result.success) {
+            res.status(200).send(result.message);
+        } else {
+            res.status(404).send(result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting list:', error);
+        res.status(500).send('Server error');
     }
 };
 
@@ -60,6 +67,7 @@ exports.deleteList = (req, res) => {
  * 
  * @route POST /lists
  * @param {Object} req - The request object containing the list ID in the body.
+ * @param {string} req.body.id - The ID of the list to fetch from TMDB.
  * @param {Object} res - The response object used to send the created list data or an error message.
  * @returns {void}
  */
@@ -82,42 +90,33 @@ exports.addList = async (req, res) => {
         // Make the request to the TMDB API using axios
         let response = await axios(options);
 
-        
+        // Iterate through all pages of the TMDB API response
         for (let i = 0; i < response.data['total_pages']; i++) {
             if (i != 0) {
-                options = {
-                    method: 'GET',
-                    url: `https://api.themoviedb.org/3/list/${listId}?language=en-US&page=${i + 1}`,
-                    headers: {
-                        accept: 'application/json',
-                        Authorization: TMDB_AUTH_TOKEN 
-                    }
-                };
+                options.url = `https://api.themoviedb.org/3/list/${listId}?language=en-US&page=${i + 1}`;
                 response = await axios(options);
             }
             for (let j = 0; j < response.data['items'].length; j++) {
                 list_temp.push(response.data['items'][j]['title']);
             }
         }
+        
+        // Add the list to the database
+        const result = await Utils.AddList({
+            Id_Site: 'XYZ123',
+            id: listId,
+            site: 'TMDB',
+            movies: list_temp
+        });
 
-        lists.push(CreateList(listId, list_temp));
-        res.status(201).json(lists);
-    } catch (error) {
-        // Handle any errors that occurred during the request
-        if (error.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            console.error('Error response from TMDB API:', error.response.data);
-            res.status(error.response.status).send('Error occurred: ' + error.response.data.status_message);
-        } else if (error.request) {
-            // The request was made but no response was received
-            console.error('No response received:', error.request);
-            res.status(500).send('No response from TMDB API');
+        if (result.success) {
+            res.status(200).send(result.message);
         } else {
-            // Something happened in setting up the request that triggered an Error
-            console.error('Error setting up request:', error.message);
-            res.status(500).send('Error occurred: ' + error.message);
+            res.status(404).send(result.message);
         }
+    } catch (error) {
+        console.error('Error adding list:', error);
+        res.status(500).send('Server error');
     }
 };
 
@@ -129,7 +128,16 @@ exports.addList = async (req, res) => {
  * @param {Object} res - The response object used to send the combined movie data or an error message.
  * @returns {void}
  */
-exports.getMovies = (req, res) => {
-    // Send the movies data that appear in all lists as a JSON response
-    res.status(200).json(Utils.CombineLists(lists));
+exports.getMovies = async (req, res) => {
+    try {
+        // Call CombineLists and wait for the result
+        const movies = await Utils.CombineLists();
+        
+        // Send the movies data that appear in all lists as a JSON response
+        res.status(200).json(movies);
+    } catch (error) {
+        // Handle any errors that occur during the process
+        console.error('Error fetching movies:', error);
+        res.status(500).send('Server error');
+    }
 };

@@ -26,6 +26,19 @@ app.use((req, res, next) => {
   next();
 });
 
+
+// Replace with your MongoDB connection string
+const mongoURI = 'mongodb://localhost:27017/CineList'; // Local MongoDB connection
+
+mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+
+
 // Specify a port number for the server
 const port = 5000;
 
