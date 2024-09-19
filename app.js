@@ -10,8 +10,8 @@ const app = express();
 // Middleware to parse incoming JSON requests
 app.use(bodyParser.json()); // application/json
 
-const authRoutes = require('./routes/lists');
-
+const authRoutes_MovieLists = require('./routes/lists');
+const authRoutes_Users= require('./routes/user');
 /**
  * Middleware to handle Cross-Origin Resource Sharing (CORS) settings.
  * This allows the server to accept requests from any origin and supports various HTTP methods.
@@ -46,7 +46,8 @@ const port = 5000;
  * Route Middleware
  * Routes all requests starting with '/lists' to the routes defined in the 'authRoutes' module.
  */
-app.use('/lists', authRoutes);
+app.use('/lists', authRoutes_MovieLists);
+app.use('/user', authRoutes_Users);
 
 /**
  * Start the server and listen on the specified port.

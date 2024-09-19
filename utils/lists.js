@@ -1,5 +1,5 @@
 const { del } = require("request");
-const { MovieListsSchema, MovieLists } = require("../models/list");
+const {  MovieLists } = require("../models/list");
 const mongoose = require('mongoose');
 
 exports.AddList = async function AddList(movieListData) {

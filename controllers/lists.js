@@ -1,11 +1,9 @@
 const Utils = require('../utils/lists');
-const { CreateList, lists } = require('../models/list');
 const request = require('request');
 const axios = require('axios');
 
 // Store the TMDB authentication token securely, preferably in environment variables - Use Your Own Here.
-const TMDB_AUTH_TOKEN = 'Bearer ';
-
+const TMDB_AUTH_TOKEN = 'Bearer'
 /**
  * Handler to retrieve a specific list by its ID.
  * 
