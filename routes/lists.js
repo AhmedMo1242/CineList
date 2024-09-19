@@ -2,6 +2,10 @@ const express = require('express');
 const listController = require('../controllers/lists');
 
 const router = express.Router();
+const verifyToken = require('../middleware/auth');
+
+// Apply verifyToken middleware to all routes in this router
+router.use(verifyToken);
 
 /**
  * Route to get a specific list by ID.

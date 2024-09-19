@@ -1,43 +1,48 @@
-const { del } = require("request");
-const {  MovieLists } = require("../models/list");
-const mongoose = require('mongoose');
+const { MovieLists } = require("../models/list");
+const User = require("../models/user"); 
+const jwt = require('jsonwebtoken');
 
+/**
+ * Adds a new movie list to the database.
+ *
+ * @param {Object} movieListData - The data for the new movie list.
+ * @param {string} movieListData.id - The ID of the movie list.
+ * @param {Array} movieListData.movies - An array of movies in the list.
+ * @param {ObjectId} movieListData.user - The ID of the user who owns the list.
+ * @returns {Object} - Contains success status, message, and the saved movie list or an error message.
+ */
 exports.AddList = async function AddList(movieListData) {
-    /**
-     * Adds a new movie list to the database.
-     *
-     * @param {Object} movieListData - The data for the new movie list.
-     * @param {string} movieListData.id - The ID of the movie list.
-     * @param {Array} movieListData.movies - An array of movies in the list.
-     * @returns {Object} - An object containing the success status, message, and the saved movie list.
-     */
     try {
-        // Create a new MovieLists document
-        const newMovieList = new MovieLists(movieListData);
+        const existingList = await MovieLists.findOne({
+            id: movieListData.id,
+            site: movieListData.site
+        }).exec();
 
-        // Save the document to MongoDB
+        if (existingList) {
+            return { success: false, message: 'Movie list with the same ID and site already exists' };
+        }
+
+        const newMovieList = new MovieLists(movieListData);
         await newMovieList.save();
 
-        // Return a success message or the saved document
         return { success: true, message: 'Movie list saved successfully', data: newMovieList };
     } catch (err) {
-        // Handle any errors that occur during the save operation
         console.error('Error saving movie list:', err);
         throw new Error('Error saving movie list');
     }
 };
 
-
-exports.FindList = async function FindList(id_movie) {
-    /**
-     * Finds a movie list by its ID.
-     *
-     * @param {string} id_movie - The ID of the movie list to find.
-     * @returns {Promise<Array>} - A promise that resolves to an array of movie lists matching the given ID.
-     */
+/**
+ * Finds a movie list by its ID and user.
+ *
+ * @param {Object} query - Query parameters to find the movie list.
+ * @param {string} query.id - The ID of the movie list.
+ * @param {ObjectId} query.user - The ID of the user who owns the list.
+ * @returns {Promise<Array>} - A promise that resolves to an array of matching movie lists.
+ */
+exports.FindList = async function FindList({ id, user }) {
     try {
-        const results = await MovieLists.find({ id: id_movie }).exec();
-        return results;
+        return await MovieLists.find({ id, user }).exec();
     } catch (error) {
         console.error('Error finding movie list:', error);
         throw error;
@@ -45,62 +50,79 @@ exports.FindList = async function FindList(id_movie) {
 };
 
 /**
- * Deletes a movie list from the database by its ID.
+ * Deletes a movie list by its ID and user.
  *
- * @param {string} id_movie - The ID of the movie list to delete.
- * @returns {Object} - An object containing the success status and a message.
- * @throws {Error} - Throws an error if the deletion fails.
+ * @param {Object} query - Query parameters to delete the movie list.
+ * @param {string} query.id - The ID of the movie list.
+ * @param {ObjectId} query.user - The ID of the user who owns the list.
+ * @returns {Object} - Contains success status and a message.
+ * @throws {Error} - Throws an error if deletion fails.
  */
-exports.DeleteList = async function DeleteList(id_movie) {
+exports.DeleteList = async function DeleteList({ id, user }) {
     try {
-        // Find the list to ensure it exists before attempting to delete it
-        const delete_post = await exports.FindList(id_movie);
+        const delete_post = await exports.FindList({ id, user });
         if (delete_post && delete_post.length > 0) {
-            // Delete the list by its ID
-            await MovieLists.deleteOne({ id: id_movie });
-
-            // Return a success message or any relevant result
+            await MovieLists.deleteOne({ id, user });
             return { success: true, message: 'Movie list deleted successfully' };
         } else {
-            // If the list does not exist, return an error message
             return { success: false, message: 'Movie list not found' };
         }
     } catch (error) {
-        // Handle any errors that occur during the process
         console.error('Error deleting movie list:', error);
         throw new Error('Server error');
     }
 };
 
 /**
- * Combines all movie lists from the database and returns the movies that appear in all lists.
+ * Combines movie lists for a user and returns movies appearing in all lists.
  *
- * @returns {Promise<Array>} - A promise that resolves to an array of movies that appear in all lists.
- * @throws {Error} - Throws an error if the combining process fails.
+ * @param {ObjectId} userId - The ID of the user.
+ * @returns {Promise<Array>} - A promise that resolves to an array of movies appearing in all lists.
+ * @throws {Error} - Throws an error if the process fails.
  */
-exports.CombineLists = async function CombineLists() {
+exports.CombineListsForUser = async function CombineListsForUser(userId) {
     try {
-        // Fetch all movie lists from MongoDB
-        const lists = await MovieLists.find({}).exec();
+        const lists = await MovieLists.find({ user: userId }).exec();
 
         if (lists.length === 0) {
-            return []; // Return an empty array if no lists are found
+            return [];
         }
 
-        // Initialize combined_movies with the movies from the first list
         let combined_movies = lists[0].movies;
 
-        // Iterate over the remaining lists and filter movies that are present in all lists
         for (let i = 1; i < lists.length; i++) {
-            combined_movies = combined_movies.filter(movie => 
-                lists[i].movies.includes(movie)
-            );
+            combined_movies = combined_movies.filter(movie => lists[i].movies.includes(movie));
         }
 
-        // Return the list of movies that appear in all the lists
         return [...new Set(combined_movies)];
     } catch (error) {
         console.error('Error combining movie lists:', error);
         throw new Error('Error combining movie lists');
+    }
+};
+
+/**
+ * Deletes all movie lists for users with expired tokens.
+ *
+ * @returns {Promise<void>}
+ */
+exports.deleteExpiredLists = async function deleteExpiredLists() {
+    try {
+        const users = await User.find();  // Fetch all users
+
+        for (const user of users) {
+            const token = user.token;
+            if (!token) continue;
+
+            const decoded = jwt.decode(token, { complete: true });
+
+            if (decoded && decoded.payload.exp < Date.now() / 1000) {
+                await MovieLists.deleteMany({ user: user._id });
+                console.log(`Deleted movie lists for user ${user._id} due to expired token.`);
+                await User.findByIdAndUpdate(user._id, { $unset: { token: "" } });
+            }
+        }
+    } catch (error) {
+        console.error('Error checking for expired tokens:', error);
     }
 };

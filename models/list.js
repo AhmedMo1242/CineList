@@ -1,28 +1,23 @@
 const mongoose = require('mongoose');
 
-// Define the schema for movie lists
 /**
- * Schema for storing movie lists.
+ * Schema definition for movie lists.
  * 
  * @typedef {Object} MovieListsSchema
- * @property {string} Id_Site - The unique identifier for the site where the list is sourced from.
- * @property {number} id - The unique identifier for the movie list.
- * @property {string} site - The name of the site or source of the movie list.
- * @property {Array<string>} movies - An array of movie titles included in the list.
+ * @property {string} Id_Site - The unique identifier for the movie list on the site.
+ * @property {number} id - The unique ID of the movie list.
+ * @property {string} site - The name of the site where the list is hosted (e.g., TMDB).
+ * @property {Array<string>} movies - An array of movie titles in the list.
+ * @property {mongoose.Schema.Types.ObjectId} user - Reference to the User model representing the owner of the list.
  */
 const MovieListsSchema = new mongoose.Schema({
-    Id_Site: { type: String, required: true },    // 'Id_Site' as a string
-    id: { type: Number, required: true },         // 'id' as a number
-    site: { type: String, required: true },       // 'site' as a string
-    movies: [{ type: String }]                    // 'movies' as an array of strings (list of movie titles, for example)
+    Id_Site: { type: String, required: true },
+    id: { type: Number, required: true },
+    site: { type: String, required: true },
+    movies: [{ type: String }],
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Link to the user who owns the list
 });
 
-// Create the model for the schema
-/**
- * Model representing a collection of movie lists.
- * 
- * @typedef {mongoose.Model} MovieLists
- */
 const MovieLists = mongoose.model('MovieLists', MovieListsSchema);
 
 module.exports = { MovieListsSchema, MovieLists };
